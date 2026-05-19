@@ -1,0 +1,25 @@
+# IDE and editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# System / Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Node modules (in case dependencies are added in the future)
+node_modules/
+
+# Local configuration files
+config.local.json
+credentials.json
+firebase-key.json

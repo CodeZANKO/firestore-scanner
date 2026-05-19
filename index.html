@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FireGuard — Firestore Security Scanner</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Vazirmatn:wght@300;400;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Icons (FontAwesome) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK (v8) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="glow-bg"></div>
+    
+    <header class="app-header">
+        <div class="logo">
+            <div class="logo-icon">
+                <i class="fa-solid fa-shield-halved fa-fire"></i>
+            </div>
+            <div class="logo-text">
+                <h1>FireGuard</h1>
+                <span data-localize="app_subtitle">Firestore Security Auditor</span>
+            </div>
+        </div>
+        
+        <div class="header-controls">
+            <!-- Firebase Connection Status Badge -->
+            <div class="status-badge disconnected" id="connection-status">
+                <span class="status-dot"></span>
+                <span class="status-text" data-localize="status_disconnected">دەتەواو نەکراوە</span>
+            </div>
+            
+            <!-- Language Switcher -->
+            <div class="lang-switcher">
+                <button class="lang-btn active" data-lang="ku">کوردی</button>
+                <button class="lang-btn" data-lang="en">EN</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- Sidebar: Configuration -->
+        <aside class="sidebar card">
+            <div class="sidebar-section">
+                <h3 class="section-title"><i class="fa-solid fa-gear"></i> <span data-localize="config_title">ڕێکخستنی فایەربەیس</span></h3>
+                <p class="section-desc" data-localize="config_desc">کۆدی ڕێکخستنی Firebase SDK لێرە بنووسە بۆ بەستنەوەی داتابەیسەکەت.</p>
+                
+                <div class="input-group">
+                    <label for="config-input" data-localize="label_config_json">کۆدی کۆنفیدێنس (JS Object یان JSON):</label>
+                    <textarea id="config-input" placeholder='const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "project.firebaseapp.com",
+  projectId: "project-id",
+  storageBucket: "project.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456:web:abcd"
+};'></textarea>
+                </div>
+                
+                <div class="config-actions">
+                    <button class="btn btn-primary" id="btn-connect" onclick="initializeFirebaseApp()">
+                        <i class="fa-solid fa-plug"></i> <span data-localize="btn_connect">بەستنەوە و چالاککردن</span>
+                    </button>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="save-config" checked>
+                        <label for="save-config" data-localize="label_save_config">بیرمەخەرەوە (لۆکاڵ ستۆریج)</label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Navigation -->
+            <nav class="app-nav">
+                <button class="nav-item active" data-tab="tab-finder">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <div>
+                        <div class="nav-title" data-localize="nav_finder_title">دۆزەرەوەی فۆڵدەرەکان</div>
+                        <div class="nav-subtitle" data-localize="nav_finder_subtitle">Brute-Force Directory Discovery</div>
+                    </div>
+                </button>
+                <button class="nav-item" data-tab="tab-scanner">
+                    <i class="fa-solid fa-shield-virus"></i>
+                    <div>
+                        <div class="nav-title" data-localize="nav_scanner_title">پشکنەری قووڵی کێڵگەکان</div>
+                        <div class="nav-subtitle" data-localize="nav_scanner_subtitle">Access Rules & Vulnerability Check</div>
+                    </div>
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            
+            <!-- Tab 1: Collection Finder -->
+            <section class="tab-pane active" id="tab-finder">
+                <div class="pane-header">
+                    <div class="header-left">
+                        <h2 data-localize="finder_title">دۆزەرەوەی فۆڵدەرە شاراوەکانی داتابەیس (Discovery Scan)</h2>
+                        <p data-localize="finder_desc">ئەم مۆدیوڵە ناوی باو و ئەگەرییەکانی فۆڵدەرەکانی Firestore تاقی دەکاتەوە بۆ دۆزینەوەی ئەو فۆڵدەرانەی کە پارێزراو نین یان لەسەر کۆدەکەت ڕانەگەیەندراون.</p>
+                    </div>
+                </div>
+                
+                <div class="finder-layout">
+                    <!-- Left column: Scanner options -->
+                    <div class="finder-options card">
+                        <h3 class="card-title"><i class="fa-solid fa-sliders"></i> <span data-localize="scan_options">ڕێکخستنەکانی پشکنین</span></h3>
+                        
+                        <div class="input-group">
+                            <label data-localize="preset_lists">لیستە پێشوەختەکان:</label>
+                            <div class="preset-buttons">
+                                <button class="btn-preset active" data-preset="standard" onclick="loadPreset('standard')">Standard (30)</button>
+                                <button class="btn-preset" data-preset="extended" onclick="loadPreset('extended')">Extended (60)</button>
+                                <button class="btn-preset" data-preset="custom" onclick="loadPreset('custom')">Custom</button>
+                            </div>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="custom-names" data-localize="custom_list_label">ناوی کۆڵۆمەکان بۆ پشکنین (دابەشکراو بە کۆما یان دێڕی نوێ):</label>
+                            <textarea id="custom-names" rows="6"></textarea>
+                        </div>
+                        
+                        <div class="input-group">
+                            <div class="slider-label-row">
+                                <label for="scan-delay" data-localize="scan_delay">ماوەی نێوان تاقیکردنەوەکان (Delay):</label>
+                                <span id="delay-val">100ms</span>
+                            </div>
+                            <input type="range" id="scan-delay" min="0" max="1000" step="50" value="100" oninput="updateDelayLabel(this.value)">
+                        </div>
+                        
+                        <div class="actions-row">
+                            <button class="btn btn-success flex-1" id="btn-start-scan" onclick="startFinderScan()">
+                                <i class="fa-solid fa-play"></i> <span data-localize="btn_start_scan">دەستپێکردنی پشکنین</span>
+                            </button>
+                            <button class="btn btn-danger" id="btn-stop-scan" onclick="stopFinderScan()" disabled>
+                                <i class="fa-solid fa-stop"></i> <span data-localize="btn_stop_scan">ڕاگرتن</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Progress Bar Container -->
+                        <div class="progress-container hidden" id="progress-container">
+                            <div class="progress-header">
+                                <span id="progress-text">پشکنین: 0/0 (0%)</span>
+                                <span id="current-checking-name">خەریکە تاقی دەکرێتەوە...</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right column: Statistics and found collections -->
+                    <div class="finder-results flex-column gap-20">
+                        <div class="stats-row">
+                            <div class="stat-card total">
+                                <div class="stat-icon"><i class="fa-solid fa-search"></i></div>
+                                <div class="stat-info">
+                                    <h4 data-localize="stat_scanned">پشکێندراو</h4>
+                                    <div class="stat-val" id="stat-scanned-val">0</div>
+                                </div>
+                            </div>
+                            <div class="stat-card exposed">
+                                <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                                <div class="stat-info">
+                                    <h4 data-localize="stat_exposed">فۆڵدەری ئاشکرا</h4>
+                                    <div class="stat-val" id="stat-exposed-val">0</div>
+                                </div>
+                            </div>
+                            <div class="stat-card protected">
+                                <div class="stat-icon"><i class="fa-solid fa-lock"></i></div>
+                                <div class="stat-info">
+                                    <h4 data-localize="stat_protected">پارێزراو</h4>
+                                    <div class="stat-val" id="stat-protected-val">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Discovered Collections -->
+                        <div class="card flex-1 flex-column">
+                            <h3 class="card-title flex-row-between">
+                                <span><i class="fa-solid fa-eye"></i> <span data-localize="discovered_collections">کۆلێکشنە دۆزراوەکان</span></span>
+                                <button class="btn btn-sm btn-outline" id="btn-send-all-scanner" onclick="sendAllToScanner()" style="display: none;">
+                                    <i class="fa-solid fa-share-nodes"></i> <span data-localize="send_all_scanner">ڕەوانەکردنی هەموو بۆ پشکنەری گشتگیر</span>
+                                </button>
+                            </h3>
+                            
+                            <div class="discovered-grid scroll-y flex-1" id="discovered-list">
+                                <div class="empty-state">
+                                    <i class="fa-solid fa-folder-open"></i>
+                                    <p data-localize="empty_discovered">پشکنین دەستپێبکە بۆ دۆزینەوەی فۆڵدەرەکان.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </section>
+            
+            <!-- Tab 2: Deep Field Scanner -->
+            <section class="tab-pane" id="tab-scanner">
+                <div class="pane-header">
+                    <div class="header-left">
+                        <h2 data-localize="scanner_title">پشکنەری تەواوی کێڵگەکان و یاساکانی دەستگەیشتن</h2>
+                        <p data-localize="scanner_desc">ئەم مۆدیوڵە پشکنینی قووڵ ئەنجام دەدات بۆ زانینی مافەکانی خوێندنەوە و نووسینی ناو هەر فۆڵدەرێک، کێڵگەکانی (Columns) ناو داتابەیسەکە پشکنین دەکات و تاقیکردنەوەی دەرزی لێدان (Data Injection) دەکات.</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" id="btn-run-all-scans" onclick="runAllScannerScans()">
+                            <i class="fa-solid fa-bolt-lightning"></i> <span data-localize="btn_run_all_scans">پشکنینی گشتگیر بۆ هەمووان</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="scanner-controls-bar card">
+                    <div class="ctrl-group">
+                        <label for="global-limit" data-localize="global_limit">ژمارەی داتای خوێندنەوە (Limit):</label>
+                        <input type="number" id="global-limit" value="1" min="1" max="100" class="small-input">
+                    </div>
+                    <div class="ctrl-group flex-1">
+                        <label for="new-col-id" data-localize="add_col_label">زیادکردنی کۆلێکشن بە دەستی:</label>
+                        <div class="flex-row gap-10 width-100">
+                            <input type="text" id="new-col-id" placeholder="کۆلێکشن نوێ (بۆ نموونە: payments)">
+                            <button class="btn btn-secondary btn-sm" onclick="addCollectionToScannerManually()"><i class="fa-solid fa-plus"></i> <span data-localize="btn_add">زیادکردن</span></button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Scanner Cards Container -->
+                <div class="grid-layout" id="scanner-grid">
+                    <!-- Cards will be dynamically generated by JS -->
+                </div>
+            </section>
+            
+        </main>
+    </div>
+
+    <!-- Modals (Mock Data Configuration Modal, Settings Modal) -->
+    <div class="modal-overlay" id="mock-modal">
+        <div class="modal card">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-database"></i> <span data-localize="edit_mock_title">دەستکاریکردنی داتای تاقیکاری (Mock Data)</span></h3>
+                <button class="btn-close" onclick="closeMockModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p data-localize="mock_modal_desc">ئەم داتایە بەکاردێت بۆ تاقیکردنەوەی دەرزی لێدان (Injection/Write Test) لە کۆلێکشنەکەدا.</p>
+                <div class="input-group">
+                    <label for="mock-data-json">JSON payload:</label>
+                    <textarea id="mock-data-json" class="code-font" rows="10"></textarea>
+                </div>
+                <div id="mock-error-box" class="modal-error hidden"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeMockModal()" data-localize="btn_cancel">پاشگەزبوونەوە</button>
+                <button class="btn btn-success" id="btn-save-mock" data-localize="btn_save">پاشەکەوتکردن</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Collapsible Bottom Console Drawer -->
+    <div class="console-drawer closed" id="global-console">
+        <div class="console-header" onclick="toggleConsoleDrawer()">
+            <div class="console-title">
+                <i class="fa-solid fa-terminal"></i> 
+                <span data-localize="console_logs">کۆنسۆڵ و لۆگەکانی ڕاستەوخۆ</span>
+                <span class="log-counter" id="active-log-counter" style="display: none;">0</span>
+            </div>
+            <div class="console-actions" onclick="event.stopPropagation()">
+                <div class="console-filters">
+                    <button class="console-filter-btn active" data-filter="all" onclick="filterLogs('all')" data-localize="filter_all">سەرجەم</button>
+                    <button class="console-filter-btn" data-filter="SUCCESS" onclick="filterLogs('SUCCESS')" data-localize="filter_exposed">ئاشکراکان</button>
+                    <button class="console-filter-btn" data-filter="PROTECTED" onclick="filterLogs('PROTECTED')" data-localize="filter_protected">پارێزراوەکان</button>
+                </div>
+                <button class="btn btn-sm btn-clear" onclick="clearLogs()"><i class="fa-solid fa-trash-can"></i> <span data-localize="clear_logs">پاكکردنەوە</span></button>
+                <button class="btn-toggle-console" onclick="toggleConsoleDrawer()">
+                    <i class="fa-solid fa-chevron-up" id="console-chevron"></i>
+                </button>
+            </div>
+        </div>
+        <div class="console-box" id="console-logs">
+            <span class="console-placeholder" data-localize="console_placeholder">لۆگی کارکردنی پشکنەرەکە لێرە بە ڕاستەوخۆ نیشان دەدرێت...</span>
+        </div>
+    </div>
+
+    <!-- Script File -->
+    <script src="app.js"></script>
+</body>
+</html>

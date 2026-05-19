@@ -1,5 +1,7 @@
 # FireGuard 🔥 — Firestore Security Auditor & Scanner
 
+🚀 **[Live Demo](https://CodeZANKO.github.io/firestore-scanner/)**
+
 FireGuard is a modern, web-based Firestore security auditing tool designed to help developers and security researchers identify misconfigured security rules and exposed collections in Firebase projects. It features a sleek glassmorphic user interface and support for multiple languages, including English and Kurdish (RTL).
 
 ![FireGuard Interface](https://raw.githubusercontent.com/CodeZANKO/firestore-scanner/main/screenshot.png) *(Replace this with your actual screenshot after uploading)*
